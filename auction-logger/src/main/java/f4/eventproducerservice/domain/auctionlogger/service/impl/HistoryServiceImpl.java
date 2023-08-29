@@ -26,17 +26,16 @@ public class HistoryServiceImpl implements HistoryService {
   //product 현재 정보 읽어서 Fail, Success 판단 후 저장
   @Override
   public void makeAndSave(String str) throws JsonProcessingException {
-    System.out.println(str);
-    Map<String, Object> product = objectMapper.readValue(str,Map.class);
+    ProductDTO product = objectMapper.readValue(str,ProductDTO.class);
     HistoryEntity history = HistoryEntity.builder()
-        .productId(Long.parseLong(product.get("productId").toString()))
-        .productName(product.get("productName").toString())
-        .productImage(product.get("productImage").toString())
-        .bidPrice(product.get("bidPrice").toString())
-        .bidTime(product.get("bidTime").toString())
-        .userId(Long.parseLong(product.get("bidUserId").toString()))
-        .bidStatus(product.get("bidStatus").toString())
-        .userEmail(product.get("userEmail").toString()).build();
+        .productId(product.getProductId())
+        .productName(product.getProductName())
+        .productImage(product.getProductImage())
+        .bidPrice(product.getBidPrice())
+        .bidTime(product.getBidTime())
+        .userId(product.getBidUserId())
+        .bidStatus(product.getBidStatus())
+        .userEmail(product.getUserEmail()).build();
 
     System.out.println(history);
     repository.save(history);

@@ -14,6 +14,9 @@ import java.net.URI;
 import java.util.Base64;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +25,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PriceServiceImpl implements PriceService {
 
   private final ProductRepository repository;
@@ -31,6 +35,7 @@ public class PriceServiceImpl implements PriceService {
 
   @Value(value = "${mock.url}")
   private String url;
+  private Logger logger = LoggerFactory.getLogger(PriceServiceImpl.class);
 
   @Override
   @Transactional
@@ -50,40 +55,31 @@ public class PriceServiceImpl implements PriceService {
         .userEmail(token.get("email").toString())
         .build();
 
-    if (Long.parseLong(bodyMap.get("price").toString()) <= Long.parseLong(product.getBidPrice()) ||
-        Long.parseLong(token.get("id").toString())==product.getBidUserId()) {
+    MockUpdateRequestDTO mockDto;
+
+    if (product.getBidUserId() == null && Long.parseLong(product.getBidPrice()) < Long.parseLong(
+        sendProductInfo.getBidPrice())) {
+      mockDto = option1Builder(sendProductInfo);
+    } else if (product.getBidUserId() != null && !product.getBidUserId().equals(sendProductInfo.getBidUserId())
+        && Long.parseLong(product.getBidPrice()) < Long.parseLong(sendProductInfo.getBidPrice())) {
+      mockDto = option2Builder(sendProductInfo, product);
+    } else {
       sendProductInfo.setBidStatus("FAIL");
       producer.produce(sendProductInfo);
       return;
     }
 
-//    MockUpdateRequestDTO mockDto;
-//    if (product.getBidUserId() == null) {
-//      mockDto = MockUpdateRequestDTO.builder()
-//          .curUserId(Long.parseLong(token.get("id").toString()))
-//          .curBidPrice(bodyMap.get("price").toString())
-//          .option(1)
-//          .build();
-//    } else {
-//      mockDto = MockUpdateRequestDTO.builder()
-//          .preUserId(product.getBidUserId())
-//          .preBidPrice(product.getBidPrice())
-//          .curUserId(Long.parseLong(token.get("id").toString()))
-//          .curBidPrice(bodyMap.get("price").toString())
-//          .option(2)
-//          .build();
-//    }
-//    Boolean result = restTemplateToMock(mockDto);
-
-    if (true) {
+    try{
+      restTemplateToMock(mockDto);
       product.setBidPrice(sendProductInfo.getBidPrice());
       product.setBidUserId(sendProductInfo.getBidUserId());
       repository.save(product);
       sendProductInfo.setBidStatus("SUCCESS");
       producer.produce(sendProductInfo);
-    } else {
+    }catch(Exception e){
       sendProductInfo.setBidStatus("ERROR");
       producer.produce(sendProductInfo);
+      logger.error("error : { }", e);
       throw new Exception("mock error");
     }
   }
@@ -94,7 +90,7 @@ public class PriceServiceImpl implements PriceService {
     return token;
   }
 
-  public Boolean restTemplateToMock(MockUpdateRequestDTO mock) {
+  public void restTemplateToMock(MockUpdateRequestDTO mock) {
     URI uri = UriComponentsBuilder
         .fromUriString(url)
         .path("/woori/account/v1/bid")
@@ -104,9 +100,24 @@ public class PriceServiceImpl implements PriceService {
         .toUri();
 
     RestTemplate restTemplate = new RestTemplate();
-    Boolean responseEntity = restTemplate.postForObject(
-        uri, mock, Boolean.class
-    );
-    return responseEntity;
+    restTemplate.put(uri, mock);
+  }
+
+  public MockUpdateRequestDTO option1Builder(ProductDTO sendProductInfo) {
+    return MockUpdateRequestDTO.builder()
+        .curUserId(sendProductInfo.getBidUserId())
+        .curBidPrice(sendProductInfo.getBidPrice())
+        .option(1)
+        .build();
+  }
+
+  public MockUpdateRequestDTO option2Builder(ProductDTO sendProductInfo, ProductEntity product) {
+    return MockUpdateRequestDTO.builder()
+        .preUserId(product.getBidUserId())
+        .preBidPrice(product.getBidPrice())
+        .curUserId(sendProductInfo.getBidUserId())
+        .curBidPrice(sendProductInfo.getBidPrice())
+        .option(2)
+        .build();
   }
 }

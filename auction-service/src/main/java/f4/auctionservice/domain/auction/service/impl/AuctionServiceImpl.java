@@ -34,24 +34,24 @@ public class AuctionServiceImpl implements AuctionService {
         Map<String, Object> token = decode(accessToken.split("\\.")[1]);
         Map<String, Object> bodyMap = mapper.readValue(body, Map.class);
 
-//        BidCheckRequestDto user = BidCheckRequestDto.builder()
-//            .arteUserId(Long.parseLong(token.get("id").toString()))
-//            .bidPrice(bodyMap.get("price").toString())
-//            .password(encryptor.encrypt(bodyMap.get("password").toString())).build();
-//
-//        Map<String,Object> result = mapper.readValue(userCheck(user),Map.class);
-//
-//        if (result.get("status").toString().equals("success")) {
+        BidCheckRequestDto user = BidCheckRequestDto.builder()
+            .arteUserId(Long.parseLong(token.get("id").toString()))
+            .bidPrice(bodyMap.get("price").toString())
+            .password(encryptor.encrypt(bodyMap.get("password").toString())).build();
+
+        Map<String,Object> result = mapper.readValue(userCheck(user),Map.class);
+
+        if (result.get("status").toString().equals("success")) {
             event(accessToken, body);
             return "입찰 요청 되었습니다.";
-//        } else {
-//            return ((Map<String, Object>)result.get("error")).get("message").toString();
-//        }
+        } else {
+            return ((Map<String, Object>)result.get("error")).get("message").toString();
+        }
     }
 
     public void event(String accessToken, String body){
         kafkaProducer.produce(KafkaDTO.builder()
-            .key("bid-service")
+            .key("bidservice")
             .value(LocalDateTime.now().format(fomatter) +
                 "&&" + accessToken.split("\\.")[1]+
                 "&&" + body).build());

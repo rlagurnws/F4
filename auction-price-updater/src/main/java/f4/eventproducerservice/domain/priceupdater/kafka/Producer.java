@@ -14,15 +14,15 @@ public class Producer {
   @Value(value = "${kafka.produce.topic.name}")
   private String topicName;
 
-  private KafkaTemplate<String, String> kafkaTemplate;
+  private KafkaTemplate<String, ProductDTO> kafkaTemplate;
 
   @Autowired
   private ObjectMapper mapper;
-  public Producer(KafkaTemplate<String, String> kafkaTemplate) {
+  public Producer(KafkaTemplate<String, ProductDTO> kafkaTemplate) {
     this.kafkaTemplate = kafkaTemplate;
   }
 
   public void produce(ProductDTO data) throws JsonProcessingException {
-    kafkaTemplate.send(topicName,data.getProductName(),mapper.writeValueAsString(data));
+    kafkaTemplate.send(topicName,data.getProductName(),data);
   }
 }
